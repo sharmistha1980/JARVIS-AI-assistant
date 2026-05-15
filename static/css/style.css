@@ -1,0 +1,80 @@
+:root {
+    --electric-cyan: #00FFFF;
+    --dark-bg: #050505;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--electric-cyan);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.hud-container {
+    width: 90%;
+    max-width: 800px;
+    padding: 30px;
+    border: 1px solid var(--electric-cyan);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+    text-align: center;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.glow-text {
+    text-shadow: 0 0 10px var(--electric-cyan);
+    letter-spacing: 5px;
+}
+
+.chat-box {
+    height: 250px;
+    overflow-y: auto;
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    background: rgba(0, 20, 20, 0.5);
+    text-align: left;
+}
+
+.visualizer-box {
+    height: 150px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ring {
+    border: 2px solid var(--electric-cyan);
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    position: absolute;
+    transition: transform 0.1s ease-out; /* Smooths out the audio reactivity */
+}
+
+/* You can safely delete the @keyframes pulse block entirely now */
+
+@keyframes pulse {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+.controls button {
+    background: transparent;
+    color: var(--electric-cyan);
+    border: 1px solid var(--electric-cyan);
+    padding: 12px 25px;
+    margin: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.controls button:hover {
+    background: var(--electric-cyan);
+    color: black;
+    box-shadow: 0 0 20px var(--electric-cyan);
+}

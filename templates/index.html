@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JARVIS HUD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <div class="hud-container">
+        <header>
+            <h1 class="glow-text">J.A.R.V.I.S. <span id="status-text">ONLINE</span></h1>
+        </header>
+
+        <div class="visualizer-box">
+            <div class="ring" id="main-ring"></div>
+            <div class="ring" style="animation-delay: 0.5s;"></div>
+        </div>
+
+        <div id="chat-history" class="chat-box"></div>
+
+        <div class="controls">
+            <button id="activate-btn" onclick="startJarvis()">INITIALIZE</button>
+            <button id="stop-btn" onclick="stopAndProcess()">STOP & PROCESS</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
