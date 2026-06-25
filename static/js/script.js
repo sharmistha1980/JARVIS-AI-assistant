@@ -1,74 +1,120 @@
-const socket = io();
-let audioContext, analyser, microphone, javascriptNode;
+const socket = io.connect(window.location.origin);
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+let currentTranscript = "";
 
-async function startJarvis() {
-    socket.emit('start_jarvis');
-    document.getElementById('status-text').innerText = "LISTENING...";
-    document.getElementById('status-text').style.color = "#ff4444";
-    
-    // FEATURE 3: AUDIO-REACTIVE VISUALIZER
-    if (!audioContext) {
-        try {
-            // Request microphone access for the browser visualizer
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            microphone = audioContext.createMediaStreamSource(stream);
-            javascriptNode = audioContext.createScriptProcessor(256, 1, 1);
-            
-            analyser.smoothingTimeConstant = 0.8;
-            analyser.fftSize = 1024;
-            
-            microphone.connect(analyser);
-            analyser.connect(javascriptNode);
-            javascriptNode.connect(audioContext.destination);
-            
-            // This runs continuously while listening, scaling the ring based on volume
-            javascriptNode.onaudioprocess = function() {
-                const array = new Uint8Array(analyser.frequencyBinCount);
-                analyser.getByteFrequencyData(array);
-                let values = 0;
-                let length = array.length;
-                for (let i = 0; i < length; i++) {
-                    values += (array[i]);
-                }
-                let average = values / length;
-                
-                // Calculate scale (Base size 1 + volume offset)
-                let scale = 1 + (average / 30);
-                if (scale > 2.5) scale = 2.5; // Prevent it from getting too massive
-                
-                document.getElementById('main-ring').style.transform = `scale(${scale})`;
+// Helper function to safely find WHERE to display text on your screen
+function displayMessage(heading, text, color) {
+    // Try to find a chat-box, a text-area, or the main container dynamically
+    let container = document.getElementById('chat-box') || 
+                    document.querySelector('textarea') || 
+                    document.querySelector('.container') || 
+                    document.body;
+                    
+    // If it's a textarea or input field, change its value
+    if (container.tagName === 'TEXTAREA' || container.tagName === 'INPUT') {
+        container.value += `\n${heading}: ${text}`;
+    } else {
+        // Otherwise, append it as HTML safely
+        const p = document.createElement('p');
+        p.style.color = color || '#00ffff';
+        p.style.margin = '10px 0';
+        p.innerHTML = `<b>${heading}:</b> ${text}`;
+        container.appendChild(p);
+    }
+}
+
+// 1. Initialize Microphone & Speech Recognition
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true; 
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        console.log("Microphone active. Talk now...");
+    };
+
+    recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                currentTranscript += event.results[i][0].transcript + " ";
             }
-        } catch (err) {
-            console.error("Mic access denied for visualizer: ", err);
+        }
+        console.log("Current captured speech:", currentTranscript);
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech Recognition Error:", event.error);
+        displayMessage("SYSTEM ERROR", `Microphone issue (${event.error}). Ensure microphone permissions are allowed.`, '#ff4444');
+    };
+} else {
+    alert("Your browser does not support voice recognition. Please use Google Chrome or Microsoft Edge.");
+}
+
+// 2. Global Button Click Handlers (Matches your HTML onclick functions)
+window.startJarvis = function() {
+    if (recognition) {
+        currentTranscript = ""; 
+        try {
+            recognition.start();
+            displayMessage("SYSTEM", "Listening... Speak into your microphone.", '#ff4444');
+        } catch (e) {
+            console.log("Recognition already running or starting:", e);
         }
     }
-}
+};
 
-function stopAndProcess() {
-    document.getElementById('status-text').innerText = "PROCESSING...";
-    document.getElementById('status-text').style.color = "#FFFF00";
-    document.getElementById('main-ring').style.transform = `scale(1)`; // Reset ring
-}
-
-socket.on('status', function(data) {
-    const statusEl = document.getElementById('status-text');
-    statusEl.innerText = data.msg;
-    statusEl.style.color = data.color;
-    
-    // Snap ring back to normal when not listening
-    if (data.msg === "IDLE" || data.msg === "THINKING...") {
-        document.getElementById('main-ring').style.transform = `scale(1)`;
+window.stopAndProcess = function() {
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch(e) {}
+        
+        setTimeout(() => {
+            if (currentTranscript.trim() !== "") {
+                displayMessage("YOU", currentTranscript, '#ffffff');
+                socket.emit('submit_text', { text: currentTranscript });
+                currentTranscript = ""; // Reset for next time
+            } else {
+                displayMessage("SYSTEM", "No voice captured. Try clicking INITIALIZE and speaking clearly again.", '#ffcc00');
+            }
+        }, 500); // Small delay to let the final speech register
     }
-});
+};
 
+// 3. Receive Response from Backend and Speak It
 socket.on('chat_update', function(data) {
-    const chatBox = document.getElementById('chat-history');
-    if (data.user) {
-        chatBox.innerHTML += `<p style="color: white;"><b>YOU:</b> ${data.user}</p>`;
-    } else {
-        chatBox.innerHTML += `<p style="color: #00FFFF;"><b>JARVIS:</b> ${data.jarvis}</p>`;
-    }
-    chatBox.scrollTop = chatBox.scrollHeight;
+    displayMessage("JARVIS", data.jarvis, '#00ffff');
+    speakLikeJarvis(data.jarvis);
 });
+
+// Native Male Voice Synthesizer
+function speakLikeJarvis(text) {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    
+    // Stop any voice currently playing to avoid overlapping
+    synth.cancel(); 
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.pitch = 0.85; // Robotic tone
+    utterance.rate = 1.05;  // Crisp speed
+
+    let voices = synth.getVoices();
+    // Search system voices for a male voice profile
+    const maleVoice = voices.find(voice => 
+        voice.name.includes('Male') || 
+        voice.name.includes('David') || 
+        voice.name.includes('Arthur') ||
+        voice.name.includes('Mark')
+    );
+
+    if (maleVoice) utterance.voice = maleVoice;
+    synth.speak(utterance);
+}
+
+// Pre-load voices for browser readiness
+if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
