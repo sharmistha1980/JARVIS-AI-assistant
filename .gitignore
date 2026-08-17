@@ -1,11 +1,4 @@
-# Environments
-venv/
-env/
-__pycache__/
-
-# Environment Variables
-.env
-
-# OS generated files
-.DS_Store
 .venv/
+__pycache__/
+temp_audio.wav
+.env
